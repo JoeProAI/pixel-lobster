@@ -12,7 +12,7 @@ try {
   console.log('No config.json found, using defaults');
 }
 
-const AUDIO_MODE = config.audioMode || 'system';
+const AUDIO_MODE = config.audioMode || 'tts';
 const MONITOR = config.monitor || 'primary';
 
 let win;
@@ -71,17 +71,20 @@ function createWindow() {
     win.moveTop();
   });
 
-  // Auto-approve permissions
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(true);
-  });
-
-  // Auto-select primary screen with system audio loopback (for system audio mode)
-  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
-    desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
-      callback({ video: sources[0], audio: 'loopback' });
+  // System audio mode: approve only media capture permissions and wire up loopback
+  // TTS mode: no media capture needed — lobster polls a local HTTP envelope endpoint only
+  if (AUDIO_MODE === 'system') {
+    const MEDIA_PERMISSIONS = ['media', 'display-capture', 'audioCapture', 'videoCapture'];
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      callback(MEDIA_PERMISSIONS.includes(permission));
     });
-  });
+
+    session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+      desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+        callback({ video: sources[0], audio: 'loopback' });
+      });
+    });
+  }
 
   // Pass config to renderer via URL params
   const params = new URLSearchParams({

@@ -1,6 +1,6 @@
 {
   "// AUDIO MODE": "Set 'system' to react to all audio, or 'tts' for TTS-server-only lip sync",
-  "audioMode": "system",
+  "audioMode": "tts",
 
   "// TTS SERVER (only used when audioMode is 'tts')": "",
   "ttsUrl": "http://127.0.0.1:8787",
