@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, desktopCapturer, session, globalShortcut } = require('electron');
+const { app, BrowserWindow, screen, desktopCapturer, session, ipcMain, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -16,9 +16,14 @@ const AUDIO_MODE = config.audioMode || 'system';
 const MONITOR = config.monitor || 'primary';
 
 let win;
+let currentDisplayIdx = 0;
+
+function getAllDisplays() {
+  return screen.getAllDisplays();
+}
 
 function getDisplay() {
-  const displays = screen.getAllDisplays();
+  const displays = getAllDisplays();
   const primary = screen.getPrimaryDisplay();
 
   if (MONITOR === 'primary') return primary;
@@ -36,26 +41,34 @@ function getDisplay() {
 }
 
 function createWindow() {
+  const displays = getAllDisplays();
   const display = getDisplay();
-  const { width, height } = display.bounds;
+  currentDisplayIdx = Math.max(0, displays.findIndex(d => d.id === display.id));
 
   win = new BrowserWindow({
-    width: width,
-    height: height,
+    width: display.bounds.width,
+    height: display.bounds.height,
     x: display.bounds.x,
     y: display.bounds.y,
     frame: false,
     transparent: true,
     alwaysOnTop: config.alwaysOnTop !== false,
-    resizable: true,
+    resizable: false,
     skipTaskbar: false,
     hasShadow: false,
     focusable: true,
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
+  });
+
+  win.once('ready-to-show', () => {
+    win.show();
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.moveTop();
   });
 
   // Auto-approve permissions
@@ -85,9 +98,13 @@ function createWindow() {
 
   win.loadFile(path.join(__dirname, 'lobster.html'), { query: Object.fromEntries(params) });
 
-  // Start interactive (draggable), F9 toggles click-through
+  // Click-through: start per config, F9 toggles, IPC from renderer also works
   let clickThrough = config.clickThrough || false;
   win.setIgnoreMouseEvents(clickThrough, { forward: true });
+
+  ipcMain.on('set-click-through', (event, enabled) => {
+    if (win) win.setIgnoreMouseEvents(enabled, { forward: true });
+  });
 
   globalShortcut.register('F9', () => {
     clickThrough = !clickThrough;
@@ -95,6 +112,26 @@ function createWindow() {
       win.setIgnoreMouseEvents(clickThrough, { forward: true });
       console.log('Click-through:', clickThrough);
     }
+  });
+
+  // F8 — move the entire window to the next display
+  globalShortcut.register('F8', () => {
+    if (!win) return;
+    const displays = getAllDisplays();
+    currentDisplayIdx = (currentDisplayIdx + 1) % displays.length;
+    const next = displays[currentDisplayIdx];
+    win.setBounds({
+      x:      next.bounds.x,
+      y:      next.bounds.y,
+      width:  next.bounds.width,
+      height: next.bounds.height,
+    });
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.moveTop();
+    // Small delay so the window finishes resizing before notifying renderer
+    setTimeout(() => {
+      if (win) win.webContents.send('display-changed', {});
+    }, 150);
   });
 
   globalShortcut.register('F12', () => {

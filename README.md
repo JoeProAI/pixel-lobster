@@ -16,6 +16,7 @@ npm start
 - Spring physics jaw with syllable detection
 - Swims around your screen like a fish tank
 - Click-through mode (F9) so it doesn't block your desktop
+- Move to next monitor instantly with F8 (cycles through all displays)
 - Two audio modes: system audio or TTS server
 
 ## Audio Modes
@@ -61,6 +62,7 @@ Edit `config.json`:
 
 | Key | Action |
 |-----|--------|
+| F8 | Move window to next monitor (cycles through all displays) |
 | F9 | Toggle click-through mode |
 | F12 | Toggle DevTools |
 
