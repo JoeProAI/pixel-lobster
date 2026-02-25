@@ -50,6 +50,17 @@ function resizeCanvas() { c.width = window.innerWidth; c.height = window.innerHe
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
+// Re-center lobster when F8 moves window to a new display
+if (window.lobsterAPI?.onDisplayChanged) {
+  window.lobsterAPI.onDisplayChanged(() => {
+    resizeCanvas();
+    lobX = window.innerWidth / 2;
+    lobY = window.innerHeight / 2;
+    swimTarget.x = window.innerWidth / 2;
+    swimTarget.y = window.innerHeight / 2;
+  });
+}
+
 // ── Swimming ──
 let lobX = window.innerWidth / 2;
 let lobY = window.innerHeight / 2;
